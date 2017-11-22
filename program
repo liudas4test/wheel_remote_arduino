@@ -1,0 +1,73 @@
+
+#include <SPI.h>
+#include <Canbus.h>
+#include <defaults.h>
+#include <global.h>
+#include <mcp2515.h>
+#include <mcp2515_defs.h>
+
+//***********************Cnstrktr*******************
+const int VOL_UP=1;
+const int VOL_DN=2;
+const int PREV_TR=3;
+const int NEXT_TR=4;
+int csPin=4; // digipot pin
+
+
+//************************SETUP*********************
+void setup() {
+
+  pinMode(csPin, OUTPUT);   
+  delay(50);
+  SPI.begin();
+  delay(50);
+  SPI.transfer(0); // command
+  SPI.transfer(0); // value
+  delay(50);
+  
+  Serial.begin(9600); 
+  Serial.println("CAN Read - Testing receival of CAN Bus message");  
+  delay(1000);
+  
+  if(Canbus.init(CANSPEED_500))  
+    Serial.println("CAN Init ok");
+  else
+    Serial.println("Can't init CAN");
+    
+  delay(1000);
+}
+
+//**********************Return_value_by_id*********
+int getR() {
+
+    tCAN message;
+	if (mcp2515_check_message()) 
+	{
+		if (mcp2515_get_message(&message)) 
+		{
+			if(message.id == 0x33F and message.data[0] == 0xFD) return(VOL_UP);  
+            if(message.id == 0x33F and message.data[0] == 0xFE) return(VOL_DN);
+			if(message.id == 0x33F and message.data[1] == 0x01) return(PREV_TR);
+			if(message.id == 0x33F and message.data[1] == 0x02) return(NEXT_TR);
+			return(0);
+		}
+	}
+}
+
+
+//**********************LOOP************************
+
+void loop(){
+
+  int currButton=getR(); 
+  
+  SPI.transfer(0);  
+  switch(currButton) {
+       case VOL_UP: SPI.transfer(21); break;  // 16kOhm
+       case VOL_DN: SPI.transfer(31); break;  // 24k    
+       case PREV_TR: SPI.transfer(14); break;  // 11k
+       case NEXT_TR: SPI.transfer(10); break;  // 8k
+       default: SPI.transfer(0); break; // nothing
+     }
+  delay(5);
+}
